@@ -7,7 +7,9 @@ services:
     hostname: gcs
     container_name: gcs
     depends_on:
-      - db    
+      - db   
+    ports:
+      - 25000-25100:25000-25100
       
   is:
     image: mhuertas/instalacionconectada:is
@@ -114,6 +116,8 @@ services:
       - crate
     environment:
       - CRATE_HOST=crate
+    healthcheck:
+      test: curl --fail -s http://localhost:8668/v2/version || exit 1
 
   crate:
     image: crate:4.1.8
