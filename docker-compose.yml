@@ -15,7 +15,10 @@ services:
     image: mhuertas/instalacionconectada:is
     hostname: is
     container_name: is
-            
+    volumes:
+      - ./is_config/config.yml:/root/is-workspace/config/config.yml
+
+           
   # Database
   db:
     image: mhuertas/instalacionconectada:mysql 
@@ -37,7 +40,7 @@ services:
       - mongo-db
     ports:
       - "${ORION_PORT}:${ORION_PORT}" # localhost:1026
-    command: -dbhost mongo -logLevel DEBUG -noCache
+    command: -dbhost mongo -logLevel DEBUG -noCache -corsOrigin __ALL -insecureNotif
     healthcheck:
       test: curl --fail -s http://orion:${ORION_PORT}/version || exit 1
       interval: 5s
@@ -58,7 +61,60 @@ services:
         host=`hostname --ip-address || echo '127.0.0.1'`; 
         mongo --quiet $host/test --eval 'quit(db.runCommand({ ping: 1 }).ok ? 0 : 2)' && echo 0 || echo 1
       interval: 5s
+
+  # Kurento media server
+  kurento:
+    image: mhuertas/instalacionconectada:kms 
+    hostname: kms
+    container_name: kms 
+    depends_on:
+      - coturn
+    expose:
+      - "8888"
+    ports:
+      - 8888:8888
+    env_file: .env
+    environment:
+      - KMS_STUN_IP=${IP_ADDRESS}
+      - KMS_STUN_PORT=${KMS_STUN_PORT}
+      - "KMS_TURN_URL=${TURN_USERNAME}:${TURN_PASSWORD}@${IP_ADDRESS}:${KMS_TURN_PORT}"
+    volumes:
+      - "${HOST_IMAGE_FOLDER}:${DOCKER_IMAGE_FOLDER}"
       
+  # Coturn
+  coturn:
+    image: coturn/coturn:latest
+    hostname: coturn
+    container_name: coturn
+    network_mode: host
+    command: -L ${KMS_STUN_IP} -n --verbose --realm kurento.org --cipher-list ${CIPHER_LIST} --fingerprint --lt-cred-mech --listening-port ${KMS_TURN_PORT} --max-allocate-timeout=0 --relay-ip ${KMS_STUN_IP} && turnadmin -a -u ${TURN_USERNAME} -r kurento.org -p ${TURN_PASSWORD}
+    volumes:
+      - "${COTURN_DB_PATH}:/var/lib/coturn"        
+
+  # Kurento application sevice
+  kas:      
+    image: mhuertas/instalacionconectada:kas 
+    hostname: kas 
+    container_name: kas
+    network_mode: host
+    depends_on:
+      - kurento
+      - orion
+    env_file: .env
+    environment:
+      - ORION_NOTIFICATION_URL=https://${IP_ADDRESS}:${SERVER_PORT}/cameras
+      - KURENTO_IP=${IP_ADDRESS}:8888
+
+  web-cameras:
+    image: mhuertas/instalacionconectada:web-cameras 
+    hostname: web-cameras  
+    container_name: web-cameras 
+    network_mode: host
+    depends_on:
+      - kas 
+    env_file:
+      - .env
+        
   mosquitto:
     image: eclipse-mosquitto:latest
     hostname: mosquitto

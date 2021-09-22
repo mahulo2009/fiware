@@ -1,0 +1,22 @@
+types:
+    idls:
+        - >
+            struct DoubleValue
+            {
+                string componentName;
+                string magnitudeName;
+                long long time_stamp;
+                double value;
+            };
+           
+systems:
+    fastdds: { type: fastdds }
+    fiware: { type: fiware, host: 172.19.0.5 , port: 1026 }
+ 
+routes:
+    dds_to_fiware: { from: fastdds, to: fiware }
+
+topics:
+    OE.ObservingEngine.currentRA:
+        type: "DoubleValue"
+        route: dds_to_fiware
