@@ -1,16 +1,23 @@
 version: "3.5"
 services:
 
+  # mm-is
+  mm-is:
+    image: mhuertas/instalacionconectada:mm-is
+    hostname: mm-is 
+    container_name: mm-is
+    depends_on:
+      - gcs
+
+
   # gcs
   gcs:
     image: mhuertas/instalacionconectada:gcs
-    hostname: gcs
+    hostname: gcs 
     container_name: gcs
     depends_on:
       - db   
-    ports:
-      - 25000-25100:25000-25100
-      
+     
   is:
     image: mhuertas/instalacionconectada:is
     hostname: is
